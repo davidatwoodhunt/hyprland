@@ -50,6 +50,7 @@ local menu        = "hyprlauncher"
 hl.on("hyprland.start", function ()
     hl.exec_cmd("pgrep -x waybar >/dev/null || waybar")
     hl.exec_cmd("pgrep -x hyprpaper >/dev/null || hyprpaper")
+    hl.exec_cmd("sh ~/.config/quickshell/evergreen/dashboard.sh start")
 end)
 
 
@@ -236,6 +237,9 @@ hl.device({
 ---------------------
 
 local mainMod = "SUPER" -- Sets "Windows" key as main modifier
+
+-- Dedicated layer-shell dashboard; existing Super+M exit binding stays intact.
+hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("sh ~/.config/quickshell/evergreen/dashboard.sh toggle"))
 
 -- Example binds, see https://wiki.hypr.land/Configuring/Basics/Binds/ for more
 hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd(terminal))
