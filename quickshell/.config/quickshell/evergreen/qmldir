@@ -2,3 +2,4 @@ singleton Style 1.0 Style.qml
 MetricBar 1.0 MetricBar.qml
 Section 1.0 Section.qml
 HistoryGraph 1.0 HistoryGraph.qml
+WeatherCard 1.0 WeatherCard.qml

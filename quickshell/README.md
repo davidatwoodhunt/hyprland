@@ -24,7 +24,7 @@ Hyprland does not rerun that event; the final command activates it immediately.
 Repeated `start` requests are harmless. A runtime lock and Quickshell's
 `--no-duplicate` option prevent duplicate instances.
 
-**Super + Shift + M** hides/shows the panel without killing it or resetting its
+**Super + Shift + M** hides/shows both panels without killing it or resetting its
 history. If it isn't running, that shortcut starts it. Super + M retains the
 existing session exit command. The collector continues sampling while hidden.
 
@@ -112,3 +112,57 @@ performed; the exact command registered for startup was exercised directly.
 References: [Quickshell PanelWindow](https://quickshell.org/docs/v0.3.2/types/Quickshell/PanelWindow/),
 [Wayland layers](https://quickshell.org/docs/v0.3.2/types/Quickshell.Wayland/WlrLayershell/),
 and [IPC handlers](https://quickshell.org/docs/v0.3.2/types/Quickshell.Io/IpcHandler/).
+
+## NYC weather card
+
+A compact, top-aligned weather card sits **beside**, to the left of, the resource
+panel on DP-3. It shares the existing Quickshell instance, startup command, and
+visibility toggle. It is a non-focusable bottom-layer surface, so tiled and
+fullscreen applications cover it. No Hyprland configuration changes or new
+packages are required for weather.
+
+The card is 589 px wide and about 520 px tall on the current display, with a
+20 px gap from the resource panel. In `Style.qml`, use `weatherGap` to change the
+gap, `weatherOpacity` (default `0.80`) for background transparency, and
+`weatherSeparator` (`#405347`) for borders/separators. It uses `surface` (`#1B261F`),
+`sage` and `ivory` from the shared palette. `widthFraction`, `monitor` and
+`topMargin` apply to both panels; height follows weather content automatically.
+
+`weather.py` uses Python's standard library and the Open-Meteo forecast endpoint
+for 40.7128, -74.0060 with `America/New_York`, native Fahrenheit temperatures and
+mph wind. Today shows the daily high/low and maximum daily precipitation
+probability; the three forecast cards cover **tomorrow and the following two
+days**. Weather codes map to restrained monochrome symbols. The update timestamp
+is the last successful retrieval, formatted in NYC time with the correct EDT/EST
+suffix, rather than the time of the most recent failed attempt. Data is provided
+by [Open-Meteo](https://open-meteo.com/en/docs); the public non-commercial endpoint
+requires no API key.
+
+One persistent weather process refreshes every **900 seconds**, independently of
+the two-second resource collector and UI redraws. It atomically stores the last
+successful raw response and attempt time at
+`${XDG_CACHE_HOME:-~/.cache}/evergreen-weather/nyc.json`. This is generated runtime
+state, not a dotfile to commit. Fresh cache is shown immediately on startup;
+shell reloads honor the saved cooldown. Failed requests show an unobtrusive
+`OFFLINE · CACHED` status, keep the last successful data/time, and retry after
+15 minutes. Without any cache, the card shows an offline/unavailable state rather
+than invented values. Bad JSON, mismatched units and incomplete forecasts cannot
+replace a good response. Old forecast dates are never relabeled as new dates.
+Requests time out after 15 seconds. No Internet connectivity is changed to test
+failure handling.
+
+Weather diagnostics:
+
+```sh
+qs -c evergreen ipc call dashboard weatherStatus
+python3 ~/.config/quickshell/evergreen/weather.py --once
+python3 ~/.config/quickshell/evergreen/weather.py --offline
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p test_weather.py -v
+```
+
+The `--offline` option makes no API request and reads cached data only. `--once`
+respects the 15-minute cooldown too. `--cache /tmp/weather-test.json` isolates
+validation state from the live feed. Tests cover failed networking with and
+without cache, corrupt responses, rate limiting across restarts, dates around UTC
+midnight, and DST. Live imperial and metric API responses were compared to verify
+Celsius-to-Fahrenheit and km/h-to-mph conversions within rounding precision.

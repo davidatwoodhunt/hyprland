@@ -8,6 +8,7 @@ import Quickshell.Wayland
 ShellRoot {
     id: root
     property var metrics: ({})
+    property var weather: ({})
     property double lastSample: 0
     property double clock: Date.now()
     property bool healthy: lastSample > 0 && clock - lastSample < 8000 && !metrics.error
@@ -32,6 +33,7 @@ ShellRoot {
         target: "dashboard"
         function toggle(): void { state.shown = !state.shown; }
         function visible(): bool { return state.shown; }
+        function weatherStatus(): string { return JSON.stringify(root.weather); }
         function status(): string { return JSON.stringify({visible: state.shown, healthy: root.healthy, metrics: root.metrics}); }
     }
     Process {
@@ -44,6 +46,48 @@ ShellRoot {
                     root.metrics = JSON.parse(data);
                     root.lastSample = Date.now();
                 } catch (error) { console.warn("Invalid telemetry:", error); }
+            }
+        }
+    }
+    // Weather has its own cached 15-minute feed, independent of telemetry/redraws.
+    Process {
+        id: weatherCollector
+        command: ["python3", Quickshell.shellPath("weather.py")]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                try { root.weather = JSON.parse(data); }
+                catch (error) { console.warn("Invalid weather:", error); }
+            }
+        }
+    }
+    Timer { interval: 5000; running: true; repeat: true; onTriggered: { if (!weatherCollector.running) weatherCollector.running = true; } }
+    Variants {
+        model: Quickshell.screens.filter(s => s.name === Style.monitor)
+        PanelWindow {
+            id: weatherPanel
+            required property var modelData
+            screen: modelData
+            visible: state.shown
+            anchors { top: true; right: true }
+            margins {
+                top: Style.topMargin
+                right: Style.edgeMargin + Math.round(weatherPanel.modelData.width * Style.widthFraction) + Style.weatherGap
+            }
+            implicitWidth: Math.round(weatherPanel.modelData.width * Style.widthFraction)
+            implicitHeight: Math.min(weatherCard.implicitHeight, weatherPanel.modelData.height - Style.topMargin - Style.edgeMargin)
+            color: "transparent"
+            exclusionMode: ExclusionMode.Ignore
+            focusable: false
+            WlrLayershell.namespace: "evergreen-weather"
+            WlrLayershell.layer: WlrLayer.Bottom
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            Flickable {
+                anchors.fill: parent
+                contentHeight: weatherCard.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                WeatherCard { id: weatherCard; width: parent.width; height: implicitHeight; weather: root.weather }
             }
         }
     }

@@ -14,5 +14,9 @@ QtObject {
     readonly property color evergreen: "#547660"
     readonly property color sage: "#9AAE94"
     readonly property color ivory: "#E2E3D8"
+    // Weather sits to the left of the resource panel, aligned at its top.
+    readonly property int weatherGap: 20
+    readonly property real weatherOpacity: 0.80
+    readonly property color weatherSeparator: "#405347"
     readonly property string font: "DejaVu Sans Mono"
 }
