@@ -1,0 +1,54 @@
+{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "spacing": 4,
+  "modules-left": [
+    "hyprland/workspaces"
+  ],
+  "modules-center": [
+    "clock"
+  ],
+  "modules-right": [
+    "cpu",
+    "memory",
+    "custom/gpu",
+    "network",
+    "pulseaudio"
+  ],
+  "hyprland/workspaces": {
+    "format": "{id}",
+    "on-click": "activate",
+    "all-outputs": false
+  },
+  "clock": {
+    "format": "{:%a  %d %b   %H:%M}",
+    "tooltip-format": "{:%A, %B %d, %Y}"
+  },
+  "cpu": {
+    "format": "CPU {usage}%",
+    "interval": 5
+  },
+  "memory": {
+    "format": "RAM {percentage}%",
+    "interval": 5
+  },
+  "custom/gpu": {
+    "exec": "python3 ~/.config/waybar/scripts/gpu.py",
+    "return-type": "json",
+    "interval": 10,
+    "format": "{}"
+  },
+  "network": {
+    "format-wifi": "NET {signalStrength}%",
+    "format-ethernet": "NET wired",
+    "format-disconnected": "NET offline",
+    "tooltip-format": "{ifname}: {ipaddr}",
+    "interval": 10
+  },
+  "pulseaudio": {
+    "format": "VOL {volume}%",
+    "format-muted": "VOL muted",
+    "scroll-step": 5
+  }
+}
