@@ -242,7 +242,7 @@ local mainMod = "SUPER" -- Sets "Windows" key as main modifier
 hl.bind(mainMod .. " + SHIFT + M", hl.dsp.exec_cmd("sh ~/.config/quickshell/evergreen/dashboard.sh toggle"))
 
 -- Example binds, see https://wiki.hypr.land/Configuring/Basics/Binds/ for more
-hl.bind(mainMod .. " + Q", hl.dsp.exec_cmd(terminal))
+hl.bind("SUPER + Q", hl.dsp.window.close())
 hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
 local closeWindowBind = hl.bind(mainMod .. " + C", hl.dsp.window.close())
 -- closeWindowBind:set_enabled(false)
@@ -251,13 +251,50 @@ hl.bind(mainMod .. " + E", hl.dsp.exec_cmd(fileManager))
 hl.bind(mainMod .. " + V", hl.dsp.window.float({ action = "toggle" }))
 hl.bind(mainMod .. " + R", hl.dsp.exec_cmd(menu))
 hl.bind(mainMod .. " + P", hl.dsp.window.pseudo())
-hl.bind(mainMod .. " + J", hl.dsp.layout("togglesplit"))    -- dwindle only
+hl.bind(mainMod .. " + CTRL + J", hl.dsp.layout("togglesplit"))    -- dwindle only
 
 -- Move focus with mainMod + arrow keys
 hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
 hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
 hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
 hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+
+-- Spatial focus and movement; arrows remain available as focus aliases.
+for key, direction in pairs({ H = "left", J = "down", K = "up", L = "right" }) do
+    hl.bind(mainMod .. " + " .. key, hl.dsp.focus({ direction = direction }))
+    hl.bind(mainMod .. " + SHIFT + " .. key, hl.dsp.window.move({ direction = direction }))
+end
+hl.bind(mainMod .. " + CTRL + left", hl.dsp.window.move({ monitor = "l" }))
+hl.bind(mainMod .. " + CTRL + right", hl.dsp.window.move({ monitor = "r" }))
+-- Preserve the former explicit monitor-focus behavior on new shortcuts.
+hl.bind(mainMod .. " + ALT + H", hl.dsp.focus({ monitor = "l" }))
+hl.bind(mainMod .. " + ALT + L", hl.dsp.focus({ monitor = "r" }))
+hl.bind(mainMod .. " + F", hl.dsp.window.fullscreen({ mode = "fullscreen", action = "toggle" }))
+hl.bind(mainMod .. " + SHIFT + F", hl.dsp.window.fullscreen({ mode = "maximized", action = "toggle" }))
+
+-- Hyprland has no primary flag. Use spatial order, matching the dashboard:
+-- leftmost/topmost is primary, next is secondary. No connector names assumed.
+local function secondaryMonitor()
+    local monitors = hl.get_monitors()
+    table.sort(monitors, function(a, b)
+        if a.x ~= b.x then return a.x < b.x end
+        if a.y ~= b.y then return a.y < b.y end
+        return a.name < b.name
+    end)
+    return monitors[2]
+end
+local function launchOnSecondary(command)
+    local monitor = secondaryMonitor()
+    if monitor then hl.exec_cmd(command, { monitor = monitor.name }) end
+end
+hl.bind(mainMod .. " + CTRL + Return", function() launchOnSecondary(terminal) end)
+hl.bind(mainMod .. " + CTRL + R", function()
+    local monitor = secondaryMonitor()
+    if monitor then
+        hl.dispatch(hl.dsp.focus({ monitor = monitor.name }))
+        hl.exec_cmd(menu)
+    end
+end)
 
 -- Switch workspaces with mainMod + [0-9]
 -- Move active window to a workspace with mainMod + SHIFT + [0-9]

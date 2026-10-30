@@ -1,10 +1,14 @@
 pragma Singleton
 import QtQuick
+import Quickshell
 
 QtObject {
-    // Geometry in logical pixels. 0.23 = 23% of the selected monitor width.
-    readonly property string monitor: "DP-3"
-    readonly property real widthFraction: 0.23
+    // Shared spatial convention with Hyprland: first screen is primary,
+    // second is the dashboard. Recomputed on hotplug/layout changes.
+    readonly property var orderedScreens: [...Quickshell.screens].sort((a, b) =>
+        a.x - b.x || a.y - b.y || a.name.localeCompare(b.name))
+    readonly property string monitor: orderedScreens.length > 1 ? orderedScreens[1].name : ""
+    readonly property real widgetAreaFraction: 0.50
     readonly property int edgeMargin: 20
     readonly property int topMargin: 54 // 30px Waybar + 24px breathing room
     readonly property real panelOpacity: 0.82

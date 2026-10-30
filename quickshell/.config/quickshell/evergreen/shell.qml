@@ -62,6 +62,24 @@ ShellRoot {
         }
     }
     Timer { interval: 5000; running: true; repeat: true; onTriggered: { if (!weatherCollector.running) weatherCollector.running = true; } }
+    // A separate, input-transparent surface owns the exclusive zone. It remains
+    // mapped when widgets are hidden, so toggling them never changes tiling.
+    Variants {
+        model: Quickshell.screens.filter(s => s.name === Style.monitor)
+        PanelWindow {
+            required property var modelData
+            screen: modelData
+            anchors { top: true; right: true; bottom: true }
+            implicitWidth: Math.round(modelData.width * Style.widgetAreaFraction)
+            exclusiveZone: implicitWidth
+            color: "transparent"
+            mask: Region {}
+            focusable: false
+            WlrLayershell.namespace: "evergreen-reservation"
+            WlrLayershell.layer: WlrLayer.Top
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+        }
+    }
     Variants {
         model: Quickshell.screens.filter(s => s.name === Style.monitor)
         PanelWindow {
@@ -72,15 +90,15 @@ ShellRoot {
             anchors { top: true; right: true }
             margins {
                 top: Style.topMargin
-                right: Style.edgeMargin + Math.round(weatherPanel.modelData.width * Style.widthFraction) + Style.weatherGap
+                right: Style.edgeMargin + weatherPanel.implicitWidth + Style.weatherGap
             }
-            implicitWidth: Math.round(weatherPanel.modelData.width * Style.widthFraction)
+            implicitWidth: Math.max(1, Math.floor((Math.round(weatherPanel.modelData.width * Style.widgetAreaFraction) - 2 * Style.edgeMargin - Style.weatherGap) / 2))
             implicitHeight: Math.min(weatherCard.implicitHeight, weatherPanel.modelData.height - Style.topMargin - Style.edgeMargin)
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             focusable: false
             WlrLayershell.namespace: "evergreen-weather"
-            WlrLayershell.layer: WlrLayer.Bottom
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             Flickable {
                 anchors.fill: parent
@@ -102,12 +120,12 @@ ShellRoot {
             visible: state.shown
             anchors { top: true; right: true; bottom: true }
             margins { top: Style.topMargin; right: Style.edgeMargin; bottom: Style.edgeMargin }
-            implicitWidth: Math.round(panel.modelData.width * Style.widthFraction)
+            implicitWidth: Math.max(1, Math.floor((Math.round(panel.modelData.width * Style.widgetAreaFraction) - 2 * Style.edgeMargin - Style.weatherGap) / 2))
             color: "transparent"
             exclusionMode: ExclusionMode.Ignore
             focusable: false
             WlrLayershell.namespace: "evergreen-dashboard"
-            WlrLayershell.layer: WlrLayer.Bottom
+            WlrLayershell.layer: WlrLayer.Top
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             Rectangle {
                 anchors.fill: parent

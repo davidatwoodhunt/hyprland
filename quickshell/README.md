@@ -1,59 +1,95 @@
 # Evergreen system dashboard
 
-Quickshell 0.3.2 on Hyprland 0.56.2. This is a layer-shell desktop widget, not a
-Kitty window: it accepts no keyboard focus, never enters Alt-Tab, and remains on
-DP-3 across workspace changes. Waybar, wallpaper and the existing session services
-are independent of it.
+Quickshell 0.3.2 on Hyprland 0.56.2, using the installed Lua `hl` API.
+The existing system and NYC weather collectors remain in the same instance.
+No packages, drivers, display modes, or service settings were changed.
 
-## Install and run
+## Layout and monitor selection
 
-Dependencies: `quickshell`, `python`, `util-linux` (findmnt/flock), and the existing
-`nvidia-smi` utility. No pip packages or system service are needed.
+Hyprland has no primary-monitor flag. Both configurations sort connected screens
+by logical x, then y, then name: the leftmost/topmost is primary, the next is the
+secondary dashboard. This matches the existing side-by-side layout (the old
+widget configuration selected DP-3; logs identify HDMI-A-3 and DP-3 as connected).
+Live monitor coordinates could not be queried from the sandbox, so confirm this
+convention with `hyprctl monitors`. One attached screen means no dashboard or
+reserved area; reconnection recreates them automatically.
 
-From the dotfiles repository:
+Only the secondary has a right-side layer-shell exclusive zone. Dwindle tiles
+any number of normal application windows in its remaining left half; the primary
+keeps its original full work area (apart from existing Waybar and gaps).
+Weather and system cards sit beside each other entirely within the reservation.
+Both use the top layer and accept no keyboard focus. Opening, closing, moving,
+or switching workspaces does not remove the widgets.
+
+The invisible reservation surface is input-transparent and remains mapped when
+**Super+Shift+M** hides the cards. The collectors continue while hidden. If the
+whole Quickshell process stops or crashes, its reservation disappears too; run
+the existing startup script to restore it.
+
+## Apply and startup
+
+The existing `hyprland.start` callback starts `dashboard.sh start` on login.
+The script's lock, IPC check and `--no-duplicate` protect against duplicate
+instances. Hyprland reloads do not rerun the startup event; Quickshell watches its
+QML files and reloads them automatically. Run from a terminal inside Hyprland:
 
 ```sh
-stow --simulate --verbose --target="$HOME" quickshell hypr
-stow --target="$HOME" quickshell hypr
-hyprctl reload
+Hyprland --verify-config -c "$HOME/.config/hypr/hyprland.lua" && hyprctl reload
+hyprctl configerrors
 sh ~/.config/quickshell/evergreen/dashboard.sh start
+hyprctl monitors
+hyprctl binds
+qs -c evergreen ipc call dashboard status
 ```
 
-The existing `hyprland.start` callback starts the dashboard at next login. Reloading
-Hyprland does not rerun that event; the final command activates it immediately.
-Repeated `start` requests are harmless. A runtime lock and Quickshell's
-`--no-duplicate` option prevent duplicate instances.
+## Keyboard reference
 
-**Super + Shift + M** hides/shows both panels without killing it or resetting its
-history. If it isn't running, that shortcut starts it. Super + M retains the
-existing session exit command. The collector continues sampling while hidden.
+All shortcuts below include Super.
 
-## Appearance and position
+| Keys after Super | Action |
+| --- | --- |
+| Enter | Terminal |
+| Q (also C) | Close focused window |
+| F | Toggle true fullscreen |
+| Shift+F | Toggle maximize within work area, retaining dashboard space |
+| V | Toggle floating |
+| H / J / K / L | Focus left / down / up / right |
+| Shift+H / J / K / L | Move window left / down / up / right |
+| Ctrl+Left / Right | Send window to adjacent monitor |
+| 1–9 (also 0 for 10) | Switch workspace |
+| Shift+1–9 (also 0) | Send window to workspace |
+| R | Existing application launcher |
+| Left / right mouse drag | Move / resize window |
+| Ctrl+Enter | Launch a new terminal directly on secondary |
+| Ctrl+R | Focus secondary, then open application launcher |
+| Alt+H / L | Focus left / right monitor |
+| Ctrl+J | Toggle dwindle split (formerly Super+J) |
+| Shift+M | Hide/show dashboard cards, retaining reservation |
 
-Edit `.config/quickshell/evergreen/Style.qml` in this package:
+Existing arrows, file manager, scratchpad, pseudo, workspace scroll, media, audio,
+brightness, and session-exit bindings remain. H/L and Shift+H/L previously used
+monitor focus/movement; their new actions follow the requested spatial shortcuts.
+Monitor movement is now Ctrl+Left/Right, explicit focus is Alt+H/L.
 
-| Setting | Default | Adjustment |
-| --- | --- | --- |
-| `monitor` | `DP-3` | Exact output name from `hyprctl monitors -j` |
-| `widthFraction` | `0.23` | Fraction of logical monitor width; use `0.20`–`0.25` |
-| `edgeMargin` | `20` | Right and bottom margin in logical pixels |
-| `topMargin` | `54` | Top offset; accounts for the existing 30 px Waybar |
-| `panelOpacity` | `0.82` | Background alpha only; text stays opaque |
-| Color properties | Evergreen palette | RGB hex values for surfaces, text and graphs |
-| `font` | `DejaVu Sans Mono` | Installed font family |
+The launcher starts on the secondary with Ctrl+R, and newly started applications
+normally follow its focused workspace. Apps that reuse an existing window or
+have their own placement rules may stay elsewhere; use Ctrl+Left/Right for these.
+Ctrl+Enter applies an explicit monitor rule to the new terminal.
 
-On the current 2560×1440, scale-1 DP-3 display, the panel is 589×1366 at global
-(4511, 54), with a 20 px right/bottom margin. The corners have a 12 px radius in
-`shell.qml`. Settings reload automatically; hidden state survives QML reloads.
-If the monitor is disconnected, the panel is removed and returns on reconnection.
-It intentionally does not fall back to the left monitor.
+## Width and limitations
 
-The panel uses the **bottom layer**, above hyprpaper but below application windows.
-It reserves no workspace space: normal windows still tile over the full work area
-and can cover it. For an overlay that stays above applications, change
-`WlrLayershell.layer` from `WlrLayer.Bottom` to `WlrLayer.Top` in `shell.qml`; that
-will cover part of applications instead of reserving space. No Hyprland floating
-window rules are needed for a layer-shell surface. Notifications stay above it.
+Edit `widgetAreaFraction` in `~/.config/quickshell/evergreen/Style.qml`:
+`0.50` reserves 50%; `0.40` reserves 40% and leaves 60% for applications.
+Both card widths and the exclusive zone update together on QML reload. Geometry
+uses logical pixels, so monitor scaling is accounted for. Very small widths may
+make card contents cramped. Colors, margins and typography remain in Style.qml.
+
+True fullscreen (**Super+F**, browser F11, fullscreen video/games) can ignore
+exclusive zones and cover the widgets. **Super+Shift+F** uses maximized mode and
+is the dashboard-preserving alternative. Floating windows can also extend into
+the reserved area; top-layer cards render above ordinary floating windows.
+Exclusive zones constrain normal tiling, not arbitrary fullscreen/floating
+geometry. The primary monitor retains ordinary fullscreen behavior.
 
 ## Metrics and resource use
 
@@ -92,22 +128,36 @@ Python, and about 0.5–0.6% CPU each (process percentages, not total-machine CP
 ## Diagnostics and validation
 
 ```sh
-qs -c evergreen ipc call dashboard status
-qs -c evergreen ipc call dashboard visible
-sh ~/.config/quickshell/evergreen/dashboard.sh toggle
-cat "$XDG_RUNTIME_DIR/evergreen-dashboard.log"
+hyprctl monitors -j
 hyprctl layers
+hyprctl binds
 hyprctl configerrors
-python3 ~/.config/quickshell/evergreen/metrics.py --once
+qs -c evergreen ipc call dashboard status
+qs -c evergreen ipc call dashboard weatherStatus
+cat "$XDG_RUNTIME_DIR/evergreen-dashboard.log"
 ```
 
-Validated in the live session: all requested metrics, the panel dimensions and
-monitor, hide/show, repeated startup without duplicates, workspace persistence,
-and a temporary ordinary Kitty window tiling correctly on DP-3. The original
-workspace and keyboard focus were restored after testing. The 49 preexisting
-bindings remain, plus one unique Super + Shift + M binding. Lua syntax, shell
-syntax, QML lint and Stow conflict checks pass. A complete logout/login was not
-performed; the exact command registered for startup was exercised directly.
+For this change, Hyprland's `--verify-config`, Lua syntax, QML lint, Stow dry-run
+and `git diff --check` passed. The existing dashboard log reported configuration
+reload and load success after editing. Sandbox access to Hyprland and Quickshell
+IPC was denied, so reload, runtime bindings, window movement, actual reserved
+geometry, widget visibility, process counts and reboot behavior were not tested.
+No logout/reboot or duplicate shell instance was used for validation.
+
+After applying from the desktop terminal, check the secondary's right reservation
+is half its logical width in `hyprctl monitors`; the primary should have no new
+right reservation. Launch two terminals on the secondary with Ctrl+Enter and
+check both tile within its left half. Move one between monitors with
+Ctrl+Left/Right, switch workspaces, close it, and toggle the cards with Shift+M:
+the reserved work area should stay unchanged. Verify weather/metrics update.
+Confirm the same behavior after the next normal login.
+
+Backups of all four edited files, including preexisting uncommitted changes,
+are in `~/.local/state/hypr-dashboard-backups/20261030-003904/`.
+Run `sh ~/.local/state/hypr-dashboard-backups/20261030-003904/rollback.sh`
+from a desktop terminal (or a TTY) to restore those exact files. The script reloads
+Hyprland when available; from a TTY, log in again to load the restored settings.
+Quickshell reloads restored QML automatically. Nothing was committed.
 
 References: [Quickshell PanelWindow](https://quickshell.org/docs/v0.3.2/types/Quickshell/PanelWindow/),
 [Wayland layers](https://quickshell.org/docs/v0.3.2/types/Quickshell.Wayland/WlrLayershell/),
@@ -116,17 +166,16 @@ and [IPC handlers](https://quickshell.org/docs/v0.3.2/types/Quickshell.Io/IpcHan
 ## NYC weather card
 
 A compact, top-aligned weather card sits **beside**, to the left of, the resource
-panel on DP-3. It shares the existing Quickshell instance, startup command, and
-visibility toggle. It is a non-focusable bottom-layer surface, so tiled and
-fullscreen applications cover it. No Hyprland configuration changes or new
-packages are required for weather.
+panel on the secondary monitor. It shares the existing Quickshell instance, startup command, and
+visibility toggle. It is a non-focusable top-layer surface inside the shared
+exclusive zone; true fullscreen can cover it. No new packages are required.
 
-The card is 589 px wide and about 520 px tall on the current display, with a
+At 2560 logical pixels and a 50% reservation, each card is 610 px wide, with a
 20 px gap from the resource panel. In `Style.qml`, use `weatherGap` to change the
 gap, `weatherOpacity` (default `0.80`) for background transparency, and
 `weatherSeparator` (`#405347`) for borders/separators. It uses `surface` (`#1B261F`),
-`sage` and `ivory` from the shared palette. `widthFraction`, `monitor` and
-`topMargin` apply to both panels; height follows weather content automatically.
+`sage` and `ivory` from the shared palette. `widgetAreaFraction` and `topMargin` apply to both cards; monitor selection is
+automatic and weather height follows its content.
 
 `weather.py` uses Python's standard library and the Open-Meteo forecast endpoint
 for 40.7128, -74.0060 with `America/New_York`, native Fahrenheit temperatures and
